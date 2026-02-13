@@ -1,9 +1,613 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<title>Page Title</title>
-	</head>
-	<body>
-		<h1>Main Page</h1>
-	</body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marian Zlateva | Software Engineer</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;600&family=Press+Start+2P&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom Animations & Base Styles */
+        body {
+            background-color: #050505;
+            color: #e0f2fe;
+            font-family: 'Rajdhani', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .font-mono { font-family: 'Fira Code', monospace; }
+        .font-pixel { font-family: 'Press Start 2P', cursive; }
+
+        /* CRT Scanline Effect */
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 50;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(34, 211, 238, 0.03) 50%, rgba(0,0,0,0) 100%);
+            opacity: 0.1;
+            position: absolute;
+            bottom: 100%;
+            animation: scanline 10s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scanline {
+            0% { bottom: 100%; }
+            100% { bottom: -100%; }
+        }
+
+        /* Glitch Effect Classes */
+        .glitch-hover:hover {
+            animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+            color: #22d3ee;
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0891b2; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #22d3ee; 
+        }
+
+        /* Utilities */
+        .neon-border {
+            box-shadow: 0 0 10px #0891b2, inset 0 0 5px #0891b2;
+        }
+        .neon-text {
+            text-shadow: 0 0 5px #22d3ee;
+        }
+        
+        .bg-grid {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // --- Custom Icon System (Replacing external dependency) ---
+        const Icon = ({ children, size = 24, className = "" }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width={size} 
+                height={size} 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className={className}
+            >
+                {children}
+            </svg>
+        );
+
+        const Icons = {
+            User: (props) => <Icon {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></Icon>,
+            Briefcase: (props) => <Icon {...props}><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></Icon>,
+            Gamepad2: (props) => <Icon {...props}><line x1="6" x2="10" y1="12" y2="12"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="15" x2="15.01" y1="13" y2="13"/><line x1="18" x2="18.01" y1="11" y2="11"/><rect width="20" height="12" x="2" y="6" rx="2"/></Icon>,
+            Cpu: (props) => <Icon {...props}><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3"/><path d="M15 1v3"/><path d="M9 20v3"/><path d="M15 20v3"/><path d="M20 9h3"/><path d="M20 14h3"/><path d="M1 9h3"/><path d="M1 14h3"/></Icon>,
+            Github: (props) => <Icon {...props}><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></Icon>,
+            Linkedin: (props) => <Icon {...props}><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></Icon>,
+            Mail: (props) => <Icon {...props}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></Icon>,
+            MapPin: (props) => <Icon {...props}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></Icon>,
+            Trophy: (props) => <Icon {...props}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17a2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a2 2 0 0 1 2 2v2"/><path d="M2 21h20"/><path d="M18 2l-1 7a6 6 0 0 1-12 0L4 2h14Z"/></Icon>,
+            GraduationCap: (props) => <Icon {...props}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></Icon>,
+            Code: (props) => <Icon {...props}><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></Icon>,
+            ExternalLink: (props) => <Icon {...props}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></Icon>,
+            Terminal: (props) => <Icon {...props}><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></Icon>,
+            Database: (props) => <Icon {...props}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></Icon>,
+            Layers: (props) => <Icon {...props}><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></Icon>
+        };
+
+        const { 
+            Terminal, Code, Cpu, Gamepad2, Database, Layers, User, Briefcase, 
+            GraduationCap, Github, Linkedin, ExternalLink, Mail, MapPin, Trophy 
+        } = Icons;
+
+        // --- Data extracted from Resume/Transcript ---
+        const profile = {
+            name: "Marian Zlateva",
+            role: "Software Engineer",
+            level: "24", // Derived from age/grad year approximation or just stylistic
+            location: "Mountain View, CA",
+            email: "marian.zlateva@gmail.com",
+            github: "github.com/sunyesta",
+            linkedin: "linkedin.com/in/marian-zlateva",
+            summary: "Full-stack engineer and game developer specializing in Simulation, ML/AI, and Embedded Systems. Highest Honors graduate from UCSC."
+        };
+
+        const skills = {
+            languages: ["Python", "Java", "C++", "C", "Lua", "JavaScript", "TypeScript", "Rust"],
+            tools: ["Git", "PyTorch", "Tensorflow", "React", "Node.js", "SQL", "MongoDB", "Django", "Unreal Engine 5", "Unity", "Roblox Studio"],
+            domains: ["Machine Learning", "Full-stack Web", "Game Dev", "Embedded Systems", "Computer Vision", "3D Simulation"]
+        };
+
+        const education = [
+            {
+                degree: "M.S. Computer Science and Engineering",
+                school: "University of California, Santa Cruz",
+                date: "Sept 2023 - Dec 2024",
+                gpa: "3.51",
+                details: "Focus on AI, Formal Methods, and Data Systems."
+            },
+            {
+                degree: "B.S. Computer Science",
+                school: "University of California, Santa Cruz",
+                date: "Sept 2020 - Sept 2023",
+                gpa: "3.78",
+                honors: "Highest Honors",
+                details: "College Ten. Dean's Honors list multiple quarters."
+            }
+        ];
+
+        const experience = [
+            {
+                role: "Roblox Development Instructor",
+                company: "CodeRev",
+                date: "June - Aug 2025",
+                desc: "Taught Luau coding, Roblox Studio mechanics, and 3D modeling. Guided students to publish completed games."
+            },
+            {
+                role: "Flight Simulation Researcher",
+                company: "UCSC Dept. of CSE",
+                date: "Apr '23 - Sep '24",
+                desc: "Built a drone AI navigation platform using Scenic (probabilistic programming) and AirSim. Implemented 3D geometry processing and Unreal Engine data extraction."
+            },
+            {
+                role: "Technical Documentation Analyst",
+                company: "UCSC Dept. of CSE",
+                date: "Jan - June 2023",
+                desc: "Analyzed technical papers for correctness, language, and presentation logic."
+            },
+            {
+                role: "C Language Programming Instructor",
+                company: "UCSC Dept. of CSE",
+                date: "Apr - June 2021",
+                desc: "Lectured university students on C best practices, Vim configuration, and critical problem solving."
+            }
+        ];
+
+        const projects = [
+            {
+                title: "Elf Workshop Simulator",
+                tech: ["Lua", "Roblox API", "Knit"],
+                category: "Game Dev",
+                desc: "A complex Roblox game with a custom in-game 3D model editor, layered texture painting, and client-server state management.",
+                link: "https://www.roblox.com/games/115825727520570"
+            },
+            {
+                title: "Drone AI Navigation",
+                tech: ["Python", "AirSim", "Scenic", "Unreal"],
+                category: "Simulation",
+                desc: "Masters Project: Simulated drone navigation using probabilistic scenarios. Integrated MAVSDK and Trimesh for data processing.",
+                link: "#"
+            },
+            {
+                title: "Sketch Simplification ML",
+                tech: ["Python", "Blender API", "PyTorch"],
+                category: "AI / ML",
+                desc: "Pipeline using Blender to generate 3D scenes and extract 2D line art to train a Stable Diffusion model.",
+                link: "https://github.com/sunyesta/Sketch-Simplification"
+            },
+            {
+                title: "Finish My Art",
+                tech: ["Vue.js", "Python (py4web)", "GCS"],
+                category: "Web App",
+                desc: "Full-stack art sharing platform with Google Cloud Storage integration and Celery task queues.",
+                link: "https://github.com/sunyesta/FinishMyArt"
+            },
+            {
+                title: "Predicting Patient Mortality",
+                tech: ["TensorFlow", "Keras", "Scikit-learn"],
+                category: "Data Science",
+                desc: "Logistic regression and neural network models for mortality prediction using ROC curve analysis.",
+                link: "#"
+            },
+            {
+                title: "IoT Smart Plant Monitor",
+                tech: ["C++", "Arduino", "MQTT"],
+                category: "Embedded",
+                desc: "Full-stack IoT solution monitoring plant health via moisture, light, and pressure sensors with MQTT communication.",
+                link: "#"
+            }
+        ];
+
+        // --- Components ---
+
+        const NavButton = ({ active, onClick, icon: IconComponent, label }) => (
+            <button 
+                onClick={onClick}
+                className={`flex items-center gap-2 px-4 py-3 w-full text-left transition-all duration-300 border-l-4 ${
+                    active 
+                    ? 'bg-cyan-900/30 border-cyan-400 text-cyan-300 neon-text' 
+                    : 'border-transparent text-gray-400 hover:text-cyan-200 hover:bg-cyan-900/10'
+                }`}
+            >
+                <IconComponent size={18} />
+                <span className="font-pixel text-xs tracking-widest">{label}</span>
+            </button>
+        );
+
+        const SectionHeader = ({ title, glitch }) => (
+            <h2 className={`text-2xl font-bold mb-6 flex items-center gap-3 text-cyan-400 border-b border-cyan-900/50 pb-2 ${glitch ? 'glitch-hover' : ''}`}>
+                <span className="text-cyan-600">&gt;</span> {title}
+            </h2>
+        );
+
+        const StatBar = ({ label, value, color }) => (
+            <div className="mb-2">
+                <div className="flex justify-between text-xs font-mono mb-1 text-cyan-200">
+                    <span>{label}</span>
+                    <span>{value}%</span>
+                </div>
+                <div className="h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
+                    <div 
+                        className={`h-full ${color} shadow-[0_0_10px_currentColor]`} 
+                        style={{ width: `${value}%`, transition: 'width 1s ease-in-out' }}
+                    ></div>
+                </div>
+            </div>
+        );
+
+        const ParticleBackground = () => {
+            const canvasRef = useRef(null);
+            
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                let animationFrameId;
+                
+                const resizeCanvas = () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                };
+                
+                window.addEventListener('resize', resizeCanvas);
+                resizeCanvas();
+
+                const particles = [];
+                const particleCount = 60;
+                
+                for(let i = 0; i < particleCount; i++){
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5,
+                        size: Math.random() * 2
+                    });
+                }
+
+                const animate = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'rgba(34, 211, 238, 0.4)'; // Cyan
+                    
+                    particles.forEach((p, index) => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        
+                        if(p.x < 0) p.x = canvas.width;
+                        if(p.x > canvas.width) p.x = 0;
+                        if(p.y < 0) p.y = canvas.height;
+                        if(p.y > canvas.height) p.y = 0;
+                        
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Connect particles close to each other
+                        for(let j = index + 1; j < particles.length; j++){
+                            const p2 = particles[j];
+                            const dx = p.x - p2.x;
+                            const dy = p.y - p2.y;
+                            const dist = Math.sqrt(dx*dx + dy*dy);
+                            
+                            if(dist < 100) {
+                                ctx.strokeStyle = `rgba(34, 211, 238, ${0.1 - dist/1000})`;
+                                ctx.beginPath();
+                                ctx.moveTo(p.x, p.y);
+                                ctx.lineTo(p2.x, p2.y);
+                                ctx.stroke();
+                            }
+                        }
+                    });
+                    
+                    animationFrameId = requestAnimationFrame(animate);
+                };
+                
+                animate();
+                
+                return () => {
+                    window.removeEventListener('resize', resizeCanvas);
+                    cancelAnimationFrame(animationFrameId);
+                };
+            }, []);
+            
+            return <canvas ref={canvasRef} />;
+        };
+
+        const HomeView = () => (
+            <div className="animate-fade-in space-y-8">
+                <div className="p-6 border border-cyan-500/30 bg-cyan-900/10 backdrop-blur-sm rounded-lg relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500"></div>
+                    <h1 className="text-4xl md:text-5xl font-bold font-pixel mb-4 text-white">
+                        <span className="text-cyan-400">Hello,</span> World!
+                    </h1>
+                    <p className="text-lg md:text-xl text-cyan-100 font-mono leading-relaxed mb-6">
+                        I am <span className="text-yellow-400 font-bold">{profile.name}</span>, a Level {profile.level} {profile.role}.
+                        I specialize in building immersive simulations, robust game systems, and intelligent ML models.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-black/40 p-4 rounded border border-cyan-900">
+                            <h3 className="text-cyan-400 font-pixel text-xs mb-3">CHARACTER STATS</h3>
+                            <StatBar label="INTELLIGENCE (Code)" value={95} color="bg-cyan-500" />
+                            <StatBar label="WISDOM (Research)" value={88} color="bg-purple-500" />
+                            <StatBar label="CREATIVITY (Game Dev)" value={92} color="bg-yellow-500" />
+                            <StatBar label="STAMINA (Debugging)" value={100} color="bg-green-500" />
+                        </div>
+                        <div className="bg-black/40 p-4 rounded border border-cyan-900 flex flex-col justify-center">
+                            <h3 className="text-cyan-400 font-pixel text-xs mb-3">SYSTEM STATUS</h3>
+                            <ul className="text-sm font-mono space-y-2 text-gray-400">
+                                <li className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Open to Work</li>
+                                <li className="flex items-center gap-2"><MapPin size={14}/> {profile.location}</li>
+                                <li className="flex items-center gap-2"><GraduationCap size={14}/> {education[0].degree}</li>
+                                <li className="flex items-center gap-2"><Trophy size={14}/> {education[1].honors}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="border border-cyan-900/50 p-4 bg-black/20">
+                        <h3 className="font-pixel text-xs text-cyan-500 mb-4">LATEST_LOGS</h3>
+                        <div className="font-mono text-sm text-gray-400 space-y-2">
+                            <p><span className="text-green-500">✓</span> Initialized Portfolio v2.0</p>
+                            <p><span className="text-green-500">✓</span> Completed Master's Degree (Dec 2024)</p>
+                            <p><span className="text-green-500">✓</span> Published Roblox Game Framework</p>
+                            <p className="animate-pulse"><span className="text-yellow-500">_</span> Waiting for mission assignment...</p>
+                        </div>
+                    </div>
+                    <div className="border border-cyan-900/50 p-4 bg-black/20 flex flex-col justify-center items-center text-center">
+                        <p className="font-pixel text-xs text-gray-500 mb-4">READY TO COLLABORATE?</p>
+                        <a href={`mailto:${profile.email}`} className="bg-cyan-600 hover:bg-cyan-500 text-black font-bold font-pixel text-xs py-3 px-6 rounded transition-transform hover:scale-105 shadow-[0_0_15px_rgba(34,211,238,0.5)]">
+                            SEND TRANSMISSION
+                        </a>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const ExperienceView = () => (
+            <div className="animate-fade-in">
+                <SectionHeader title="QUEST LOG (Experience)" glitch={true} />
+                <div className="relative border-l-2 border-cyan-900 ml-4 space-y-10">
+                    {experience.map((job, index) => (
+                        <div key={index} className="relative pl-8 group">
+                            {/* Node Point */}
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-black border-2 border-cyan-600 group-hover:bg-cyan-400 group-hover:border-cyan-200 transition-colors shadow-[0_0_10px_#0891b2]"></div>
+                            
+                            <div className="p-5 rounded-lg bg-gray-900/40 border border-gray-800 hover:border-cyan-500/50 transition-all duration-300 hover:bg-gray-900/80 hover:translate-x-2">
+                                <div className="flex flex-wrap justify-between items-start mb-2">
+                                    <h3 className="text-xl font-bold text-white group-hover:text-cyan-300">{job.role}</h3>
+                                    <span className="font-mono text-xs bg-cyan-900/30 text-cyan-400 px-2 py-1 rounded border border-cyan-900">{job.date}</span>
+                                </div>
+                                <h4 className="text-cyan-600 font-mono text-sm mb-3">{job.company}</h4>
+                                <p className="text-gray-400 text-sm leading-relaxed">{job.desc}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        const ProjectsView = () => (
+            <div className="animate-fade-in">
+                <SectionHeader title="ACHIEVEMENTS (Projects)" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {projects.map((project, index) => (
+                        <div key={index} className="group relative bg-gray-900/50 border border-gray-800 p-5 rounded-xl overflow-hidden hover:border-cyan-400/50 transition-all duration-300 hover:-translate-y-1">
+                            {/* Decorative Corner */}
+                            <div className="absolute top-0 right-0 w-0 h-0 border-t-[30px] border-r-[30px] border-t-transparent border-r-cyan-900/50 group-hover:border-r-cyan-500 transition-colors"></div>
+                            
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="text-[10px] font-pixel text-yellow-500 uppercase tracking-wider">{project.category}</span>
+                                <a href={project.link} target="_blank" className="text-gray-500 hover:text-white"><ExternalLink size={16} /></a>
+                            </div>
+                            
+                            <h3 className="text-lg font-bold text-white mb-2 group-hover:text-cyan-300 transition-colors">{project.title}</h3>
+                            <p className="text-sm text-gray-400 mb-4 h-16 overflow-hidden">{project.desc}</p>
+                            
+                            <div className="flex flex-wrap gap-2 mt-auto">
+                                {project.tech.map((t, i) => (
+                                    <span key={i} className="px-2 py-1 bg-black rounded text-xs font-mono text-cyan-600 border border-cyan-900/50">
+                                        {t}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        const SkillsView = () => (
+            <div className="animate-fade-in">
+                <SectionHeader title="INVENTORY (Skill Tree)" />
+                
+                <div className="space-y-8">
+                    <div>
+                        <h3 className="font-pixel text-sm text-cyan-500 mb-4 border-b border-gray-800 pb-2">LANGUAGES</h3>
+                        <div className="flex flex-wrap gap-3">
+                            {skills.languages.map((skill, i) => (
+                                <div key={i} className="relative group">
+                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-600 to-purple-600 rounded opacity-50 group-hover:opacity-100 blur transition duration-200"></div>
+                                    <div className="relative px-4 py-2 bg-black rounded border border-gray-800 flex items-center gap-2">
+                                        <Code size={14} className="text-cyan-400" />
+                                        <span className="text-sm font-mono text-gray-200">{skill}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 className="font-pixel text-sm text-purple-500 mb-4 border-b border-gray-800 pb-2">TOOLS & FRAMEWORKS</h3>
+                        <div className="flex flex-wrap gap-3">
+                            {skills.tools.map((skill, i) => (
+                                <span key={i} className="px-3 py-1 bg-gray-900 border border-gray-700 hover:border-purple-500 hover:text-purple-300 text-gray-400 text-sm font-mono rounded transition-colors cursor-default">
+                                    {skill}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-cyan-900/10 p-4 rounded border border-cyan-900/50">
+                        <h3 className="font-pixel text-sm text-yellow-500 mb-4">EDUCATION_DATA</h3>
+                        <div className="space-y-4">
+                            {education.map((edu, i) => (
+                                <div key={i} className="flex justify-between items-center border-b border-gray-800 pb-2 last:border-0">
+                                    <div>
+                                        <div className="text-white font-bold">{edu.degree}</div>
+                                        <div className="text-gray-500 text-xs font-mono">{edu.school}</div>
+                                        {edu.honors && <div className="text-yellow-400 text-xs mt-1 flex items-center gap-1"><Trophy size={10}/> {edu.honors}</div>}
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="font-mono text-cyan-400 text-lg">{edu.gpa} <span className="text-xs text-gray-600">GPA</span></div>
+                                        <div className="text-gray-600 text-[10px]">{edu.date}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('home');
+
+            // Render content based on active tab
+            const renderContent = () => {
+                switch(activeTab) {
+                    case 'home': return <HomeView />;
+                    case 'experience': return <ExperienceView />;
+                    case 'projects': return <ProjectsView />;
+                    case 'skills': return <SkillsView />;
+                    default: return <HomeView />;
+                }
+            };
+
+            return (
+                <div className="min-h-screen text-gray-300 selection:bg-cyan-500 selection:text-black">
+                    <ParticleBackground />
+                    <div className="scanline"></div>
+
+                    <div className="max-w-6xl mx-auto p-4 md:p-8 relative z-10">
+                        {/* Top Bar / Header */}
+                        <header className="flex flex-col md:flex-row justify-between items-center border-b border-cyan-900/50 pb-6 mb-8 bg-black/80 backdrop-blur-md sticky top-0 z-50 p-4 rounded-b-xl border border-t-0 border-l-0 border-r-0">
+                            <div className="flex items-center gap-4 mb-4 md:mb-0">
+                                <div className="w-12 h-12 bg-cyan-900 rounded-lg flex items-center justify-center border border-cyan-500 shadow-[0_0_15px_rgba(8,145,178,0.5)]">
+                                    <span className="font-pixel text-xl text-white">MZ</span>
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-bold text-white tracking-wider">MARIAN ZLATEVA</h1>
+                                    <p className="text-cyan-500 text-xs font-mono tracking-[0.2em] uppercase glow-text">Software Engineer // lvl.{profile.level}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex gap-4">
+                                <a href={`https://${profile.github}`} target="_blank" className="text-gray-400 hover:text-white hover:scale-110 transition-transform"><Github /></a>
+                                <a href={`https://${profile.linkedin}`} target="_blank" className="text-gray-400 hover:text-white hover:scale-110 transition-transform"><Linkedin /></a>
+                                <a href={`mailto:${profile.email}`} className="text-gray-400 hover:text-white hover:scale-110 transition-transform"><Mail /></a>
+                            </div>
+                        </header>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                            {/* Left Navigation Panel */}
+                            <nav className="lg:col-span-1 space-y-2">
+                                <div className="bg-black/40 backdrop-blur-sm border border-gray-800 rounded-lg overflow-hidden">
+                                    <div className="bg-gray-900/50 p-2 text-xs text-center font-mono text-gray-500 border-b border-gray-800">INTERFACE_MENU</div>
+                                    <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={User} label="PROFILE" />
+                                    <NavButton active={activeTab === 'experience'} onClick={() => setActiveTab('experience')} icon={Briefcase} label="QUESTS" />
+                                    <NavButton active={activeTab === 'projects'} onClick={() => setActiveTab('projects')} icon={Gamepad2} label="ACHIEVEMENTS" />
+                                    <NavButton active={activeTab === 'skills'} onClick={() => setActiveTab('skills')} icon={Cpu} label="INVENTORY" />
+                                </div>
+
+                                <div className="hidden lg:block mt-6 p-4 border border-dashed border-gray-700 rounded bg-black/20">
+                                    <p className="font-mono text-[10px] text-green-500 mb-1"> console.log('Ready');</p>
+                                    <p className="font-mono text-[10px] text-cyan-500 mb-1"> &gt; Compiling assets...</p>
+                                    <p className="font-mono text-[10px] text-gray-500 animate-pulse"> &gt; _</p>
+                                </div>
+                            </nav>
+
+                            {/* Main Content Area */}
+                            <main className="lg:col-span-3 min-h-[500px]">
+                                <div className="bg-black/60 backdrop-blur-md border border-gray-800 rounded-xl p-6 shadow-2xl relative overflow-hidden">
+                                    {/* Grid Background inside content */}
+                                    <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none"></div>
+                                    
+                                    <div className="relative z-10">
+                                        {renderContent()}
+                                    </div>
+                                </div>
+                            </main>
+                        </div>
+                        
+                        <footer className="mt-12 text-center text-gray-600 text-xs font-mono">
+                            <p>SYSTEM.Render(Portfolio_v2)</p>
+                            <p>© {new Date().getFullYear()} Marian Zlateva. All rights reserved.</p>
+                        </footer>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
 </html>
